@@ -7,7 +7,7 @@ from streamlit_option_menu import option_menu
 import plotly.express as px
 
 # Database connectivity segment
-selva = psycopg2.connect(host="localhost", user="username", password="your_password", port=5432, database="Phonepe")
+selva = psycopg2.connect(host="localhost", user="username", password="password", port=5432, database="Phonepe")
 guvi = selva.cursor()
 
 
@@ -587,54 +587,57 @@ elif selected == "Map":
     st.write(f"Geomap of {select_state} for the {select_year} year - {select_quarter} quarter")
 
     # geo-Map section for Transaction
-    col1, col2, col3 = st.columns([2, 0.5, 1])
-    with col1:
-        if select_state == 'All':
-            st.markdown('__<p style="text-align:center; font-size: 20px; color: #FAA026">Geo Map based on Transaction</P>__',
-                        unsafe_allow_html=True)
-            df_mt['State'] = df_mt['State'].replace(state_name_correction)
-            guvi.execute("select * from state_geo")
-            y = guvi.fetchall()
-            state_geo_df = pd.DataFrame(y,columns=['State', 'Latitude', 'Longitude'])
-            nation_choro = df_mt[['State', 'Total_Amount', 'Total_Count']].groupby(['State']).sum().reset_index()
-            nation_choro = pd.merge(nation_choro, state_geo_df, "outer", "State")
-            fig_1 = px.scatter_geo(nation_choro, lon=nation_choro['Longitude'], lat=nation_choro['Latitude'],
-                                  hover_name='State', text=nation_choro['State'],
-                                  hover_data=['Total_Count', 'Total_Amount'], size_max=30)
-            fig_1.update_traces(marker=dict(color="black", size=5))
-            fig = px.choropleth(nation_choro,
-                                geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
-                                featureidkey='properties.ST_NM',
-                                locations='State',
-                                color='Total_Amount',
-                                hover_data=['State', 'Total_Count'],
-                                color_continuous_scale='Turbo')
-            fig.update_geos(fitbounds='locations', visible=False)
-            fig.add_trace(fig_1.data[0])
-            fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0},geo=dict(bgcolor='#00172B'),height=500, width=1200)
-            st.plotly_chart(fig)
+    if select_state == 'All':
+        st.markdown('__<p style="text-align:center; font-size: 20px; color: #FAA026">Geo Map based on Transaction</P>__',
+                    unsafe_allow_html=True)
+        df_mt['State'] = df_mt['State'].replace(state_name_correction)
+        guvi.execute("select * from state_geo")
+        y = guvi.fetchall()
+        state_geo_df = pd.DataFrame(y,columns=['State', 'Latitude', 'Longitude'])
+        nation_choro = df_mt[['State', 'Total_Amount', 'Total_Count']].groupby(['State']).sum().reset_index()
+        nation_choro = pd.merge(nation_choro, state_geo_df, "outer", "State")
+        fig_1 = px.scatter_geo(nation_choro, lon=nation_choro['Longitude'], lat=nation_choro['Latitude'],
+                              hover_name='State', text=nation_choro['State'],
+                              hover_data=['Total_Count', 'Total_Amount'], size_max=30)
+        fig_1.update_traces(marker=dict(color="black", size=5))
+        fig = px.choropleth(nation_choro,
+                            geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
+                            featureidkey='properties.ST_NM',
+                            locations='State',
+                            color='Total_Amount',
+                            hover_data=['State', 'Total_Count'],
+                            color_continuous_scale='Turbo')
+        fig.update_geos(fitbounds='locations', visible=False)
+        fig.add_trace(fig_1.data[0])
+        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0},geo=dict(bgcolor='#00172B'),height=500, width=1200)
+        st.plotly_chart(fig)
 
-        else:
-            guvi.execute(f"select * from district_geo where state = '{select_state}'")
-            y = guvi.fetchall()
-            district_geo_df = pd.DataFrame(y, columns=['State', 'District', 'Latitude', 'Longitude'])
-            df_mt['State'] = df_mt['State'].replace(state_name_correction)
-            district_choro = pd.merge(df_mt, district_geo_df, 'outer', ['State', 'District'])
-            fig_2 = px.scatter_geo(district_choro, lon=district_choro['Longitude'], lat=district_choro['Latitude'],
-                                  hover_name='District',
-                                  hover_data=['Total_Count', 'Total_Amount', 'Year', 'Quarter'], size_max=30,)
-            fig_2.update_traces(marker=dict(color="red", size=5))
-            fig = px.choropleth(district_choro,
-                                geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
-                                featureidkey='properties.ST_NM',
-                                locations='State',
-                                color='Total_Amount',
-                                hover_data=['District', 'Total_Count'],
-                                color_continuous_scale='Tealgrn')
-            fig.update_geos(fitbounds='locations', visible=False)
-            fig.add_trace(fig_2.data[0])
-            fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0}, geo=dict(bgcolor='#00172B'),height=500, width=1200)
-            st.plotly_chart(fig,use_container_width=True)
+    else:
+        st.markdown(
+            '__<p style="text-align:center; font-size: 20px; color: #FAA026">Geo Map based on Transaction</P>__',
+            unsafe_allow_html=True)
+        guvi.execute(f"select * from district_geo where state = '{select_state}'")
+        y = guvi.fetchall()
+        district_geo_df = pd.DataFrame(y, columns=['State', 'District', 'Latitude', 'Longitude'])
+        df_mt1 = df_mt.copy()
+        district_choro1 = pd.merge(df_mt1, district_geo_df, 'outer', ['State', 'District'])
+        df_mt['State'] = df_mt['State'].replace(state_name_correction)
+        district_choro = pd.merge(df_mt, district_geo_df, 'outer', ['State', 'District'])
+        fig_2 = px.scatter_geo(district_choro1, lon=district_choro1['Longitude'], lat=district_choro1['Latitude'],
+                              hover_name='District',
+                              hover_data=['Total_Count', 'Total_Amount', 'Year', 'Quarter'], size_max=30,)
+        fig_2.update_traces(marker=dict(color="red", size=5))
+        fig = px.choropleth(district_choro,
+                            geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
+                            featureidkey='properties.ST_NM',
+                            locations='State',
+                            color='Total_Amount',
+                            hover_data=['District', 'Total_Count'],
+                            color_continuous_scale='Tealgrn')
+        fig.update_geos(fitbounds='locations', visible=False)
+        fig.add_trace(fig_2.data[0])
+        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0}, geo=dict(bgcolor='#00172B'),height=500, width=1200)
+        st.plotly_chart(fig,use_container_width=True)
 
     table = 'Map_users'
     if select_state == 'All' and select_year == 'All' and select_quarter == 'All':
@@ -676,56 +679,58 @@ elif selected == "Map":
     df_mt = df_mt.reset_index(drop=True)
 
     # geo-Map section for User
-    col1, col2, col3 = st.columns([2, 0.5, 1])
-    with col1:
-        if select_state == 'All':
-            st.markdown('__<p style="text-align:Center; font-size: 20px; color: #FAA026">Geo Map based on User</P>__',
-                        unsafe_allow_html=True)
-            df_mt['State'] = df_mt['State'].replace(state_name_correction)
-            guvi.execute("select * from state_geo")
-            y = guvi.fetchall()
-            state_geo_df = pd.DataFrame(y,columns=['State', 'Latitude', 'Longitude'])
-            nation_choro = df_mt[['State', 'User_Count', 'App_Opened']].groupby(['State']).sum().reset_index()
-            nation_choro = pd.merge(nation_choro, state_geo_df, "outer", "State")
-            fig_1 = px.scatter_geo(nation_choro, lon=nation_choro['Longitude'], lat=nation_choro['Latitude'],
-                                  hover_name='State', text=nation_choro['State'],
-                                  hover_data=['User_Count', 'App_Opened'], size_max=30)
-            fig_1.update_traces(marker=dict(color="black", size=5))
-            fig = px.choropleth(nation_choro,
-                                geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
-                                featureidkey='properties.ST_NM',
-                                locations='State',
-                                color='User_Count',
-                                hover_data=['State', 'App_Opened'],
-                                color_continuous_scale='Turbo')
-            fig.update_geos(fitbounds='locations', visible=False)
-            fig.add_trace(fig_1.data[0])
-            fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0},geo=dict(bgcolor='#00172B'),height=500, width=1200)
-            st.plotly_chart(fig)
-            current_user_count = df_mt['User_Count'].sum()
-            current_app_Opened = df_mt['App_Opened'].sum()
+    if select_state == 'All':
+        st.markdown('__<p style="text-align:Center; font-size: 20px; color: #FAA026">Geo Map based on User</P>__',
+                    unsafe_allow_html=True)
+        df_mt['State'] = df_mt['State'].replace(state_name_correction)
+        guvi.execute("select * from state_geo")
+        y = guvi.fetchall()
+        state_geo_df = pd.DataFrame(y,columns=['State', 'Latitude', 'Longitude'])
+        nation_choro = df_mt[['State', 'User_Count', 'App_Opened']].groupby(['State']).sum().reset_index()
+        nation_choro = pd.merge(nation_choro, state_geo_df, "outer", "State")
+        fig_1 = px.scatter_geo(nation_choro, lon=nation_choro['Longitude'], lat=nation_choro['Latitude'],
+                              hover_name='State', text=nation_choro['State'],
+                              hover_data=['User_Count', 'App_Opened'], size_max=30)
+        fig_1.update_traces(marker=dict(color="black", size=5))
+        fig = px.choropleth(nation_choro,
+                            geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
+                            featureidkey='properties.ST_NM',
+                            locations='State',
+                            color='User_Count',
+                            hover_data=['State', 'App_Opened'],
+                            color_continuous_scale='Turbo')
+        fig.update_geos(fitbounds='locations', visible=False)
+        fig.add_trace(fig_1.data[0])
+        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0},geo=dict(bgcolor='#00172B'),height=500, width=1200)
+        st.plotly_chart(fig)
+        current_user_count = df_mt['User_Count'].sum()
+        current_app_Opened = df_mt['App_Opened'].sum()
 
-        else:
-            guvi.execute(f"select * from district_geo where state = '{select_state}'")
-            y = guvi.fetchall()
-            district_geo_df = pd.DataFrame(y, columns=['State', 'District', 'Latitude', 'Longitude'])
-            df_mt['State'] = df_mt['State'].replace(state_name_correction)
-            district_choro = pd.merge(df_mt, district_geo_df, 'outer', ['State', 'District'])
-            fig_2 = px.scatter_geo(district_choro, lon=district_choro['Longitude'], lat=district_choro['Latitude'],
-                                  hover_name='District',
-                                  hover_data=['User_Count', 'App_Opened', 'Year', 'Quarter'], size_max=30,)
-            fig_2.update_traces(marker=dict(color="red", size=5))
-            fig = px.choropleth(district_choro,
-                                geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
-                                featureidkey='properties.ST_NM',
-                                locations='State',
-                                color='User_Count',
-                                hover_data=['District', 'App_Opened'],
-                                color_continuous_scale='Tealgrn')
-            fig.update_geos(fitbounds='locations', visible=False)
-            fig.add_trace(fig_2.data[0])
-            fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0}, geo=dict(bgcolor='#00172B'),height=500, width=1200)
-            st.plotly_chart(fig,use_container_width=True)
+    else:
+        st.markdown('__<p style="text-align:center; font-size: 20px; color: #FAA026">Geo Map based on User</P>__',
+                    unsafe_allow_html=True)
+        guvi.execute(f"select * from district_geo where state = '{select_state}'")
+        y = guvi.fetchall()
+        district_geo_df = pd.DataFrame(y, columns=['State', 'District', 'Latitude', 'Longitude'])
+        df_mt1 = df_mt.copy()
+        district_choro1 = pd.merge(df_mt1, district_geo_df, 'outer', ['State', 'District'])
+        df_mt['State'] = df_mt['State'].replace(state_name_correction)
+        district_choro = pd.merge(df_mt, district_geo_df, 'outer', ['State', 'District'])
+        fig_2 = px.scatter_geo(district_choro1, lon=district_choro1['Longitude'], lat=district_choro1['Latitude'],
+                               hover_name='District',
+                               hover_data=['User_Count', 'App_Opened', 'Year', 'Quarter'], size_max=30, )
+        fig_2.update_traces(marker=dict(color="red", size=5))
+        fig = px.choropleth(district_choro,
+                            geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
+                            featureidkey='properties.ST_NM',
+                            locations='State',
+                            color='User_Count',
+                            hover_data=['District', 'App_Opened'],
+                            color_continuous_scale='Tealgrn')
+        fig.update_geos(fitbounds='locations', visible=False)
+        fig.add_trace(fig_2.data[0])
+        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0}, geo=dict(bgcolor='#00172B'),height=500, width=1200)
+        st.plotly_chart(fig,use_container_width=True)
 
 
 elif selected == "Top 10 Info":
