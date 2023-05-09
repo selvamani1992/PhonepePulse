@@ -10,7 +10,6 @@ import plotly.express as px
 selva = psycopg2.connect(host="localhost", user="username", password="password", port=5432, database="Phonepe")
 guvi = selva.cursor()
 
-
 def create_table():
     # database table creation for Aggregated vs Transaction
     guvi.execute("CREATE TABLE Agg_Trans(State varchar(50),"
