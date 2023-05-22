@@ -7,7 +7,7 @@ from streamlit_option_menu import option_menu
 import plotly.express as px
 
 # Database connectivity segment
-selva = psycopg2.connect(host="localhost", user="username", password="password", port=5432, database="Phonepe")
+selva = psycopg2.connect(host="localhost", user="postgres", password="Selva@123", port=5432, database="Phonepe")
 guvi = selva.cursor()
 
 def create_table():
@@ -365,6 +365,11 @@ if selected == "Home":
 
     * The PhonePe Pulse Dataset API is a first-of-its-kind open data initiative in the payments space, that demystify the what, why and how of digital payments in India.""")
 
+    # Update_db = st.button("Update Database")
+
+    #if Update_db:
+        #update_database()
+
 # Homepage content upon clicking Home option in the tab
 elif selected == "Chart":
     st.subheader("Aggregated information")
@@ -555,182 +560,188 @@ elif selected == "Map":
                         unsafe_allow_html=True)
             select_quarter = st.selectbox("Quarter", ('All','Q1','Q2','Q3','Q4'), label_visibility="hidden")
 
-    table = 'Map_Trans'
-    if select_state == 'All' and select_year == 'All' and select_quarter == 'All':
-        guvi.execute(f"select * from {table}")
-        y_mt = guvi.fetchall()
-    elif select_state == 'All' and select_year != 'All' and select_quarter == 'All':
-        guvi.execute(f"select * from {table} where year = {select_year}")
-        y_mt = guvi.fetchall()
-    elif select_state == 'All' and select_year == 'All' and select_quarter != 'All':
-        guvi.execute(f"select * from {table} where quarter = '{select_quarter}'")
-        y_mt = guvi.fetchall()
-    elif select_state == 'All' and select_year != 'All' and select_quarter != 'All':
-        guvi.execute(f"select * from {table} where year = '{select_year}' and quarter = '{select_quarter}'")
-        y_mt = guvi.fetchall()
-    elif select_state != 'All' and select_year == 'All' and select_quarter == 'All':
-        guvi.execute(f"select * from {table} where state = '{select_state}'")
-        y_mt = guvi.fetchall()
-    elif select_state != 'All' and select_year != 'All' and select_quarter == 'All':
-        guvi.execute(f"select * from {table} where state = '{select_state}' and year = '{select_year}'")
-        y_mt = guvi.fetchall()
-    elif select_state != 'All' and select_year == 'All' and select_quarter != 'All':
-        guvi.execute(f"select * from {table} where state = '{select_state}' and quarter = '{select_quarter}'")
-        y_mt = guvi.fetchall()
-    else:
-        guvi.execute(
-            f"select * from {table} where state = '{select_state}' and year = '{select_year}' and quarter = '{select_quarter}'")
-        y_mt = guvi.fetchall()
-    df_mt = pd.DataFrame(y_mt, columns=['State', 'Year', 'Quarter', 'District', 'Total_Count','Total_Amount'])
-    df_mt = df_mt.reset_index(drop=True)
-    st.write(f"Geomap of {select_state} for the {select_year} year - {select_quarter} quarter")
-
-    # geo-Map section for Transaction
-    if select_state == 'All':
-        st.markdown('__<p style="text-align:center; font-size: 20px; color: #FAA026">Geo Map based on Transaction</P>__',
+    col7, col8, col9 = st.columns([2,2,0.5])
+    with col9:
+        st.markdown('__<p style="text-align:left; font-size: 20px; color: #FAA026"></P>__',
                     unsafe_allow_html=True)
-        df_mt['State'] = df_mt['State'].replace(state_name_correction)
-        guvi.execute("select * from state_geo")
-        y = guvi.fetchall()
-        state_geo_df = pd.DataFrame(y,columns=['State', 'Latitude', 'Longitude'])
-        nation_choro = df_mt[['State', 'Total_Amount', 'Total_Count']].groupby(['State']).sum().reset_index()
-        nation_choro = pd.merge(nation_choro, state_geo_df, "outer", "State")
-        fig_1 = px.scatter_geo(nation_choro, lon=nation_choro['Longitude'], lat=nation_choro['Latitude'],
-                              hover_name='State', text=nation_choro['State'],
-                              hover_data=['Total_Count', 'Total_Amount'], size_max=30)
-        fig_1.update_traces(marker=dict(color="black", size=5))
-        fig = px.choropleth(nation_choro,
-                            geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
-                            featureidkey='properties.ST_NM',
-                            locations='State',
-                            color='Total_Amount',
-                            hover_data=['State', 'Total_Count'],
-                            color_continuous_scale='Turbo')
-        fig.update_geos(fitbounds='locations', visible=False)
-        fig.add_trace(fig_1.data[0])
-        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0},geo=dict(bgcolor='#00172B'),height=500, width=1200)
-        st.plotly_chart(fig)
+        map_search = st.button("Search")
 
-    else:
-        st.markdown(
-            '__<p style="text-align:center; font-size: 20px; color: #FAA026">Geo Map based on Transaction</P>__',
-            unsafe_allow_html=True)
-        guvi.execute(f"select * from district_geo where state = '{select_state}'")
-        y = guvi.fetchall()
-        district_geo_df = pd.DataFrame(y, columns=['State', 'District', 'Latitude', 'Longitude'])
-        df_mt1 = df_mt.copy()
-        district_choro1 = pd.merge(df_mt1, district_geo_df, 'outer', ['State', 'District'])
-        df_mt['State'] = df_mt['State'].replace(state_name_correction)
-        district_choro = pd.merge(df_mt, district_geo_df, 'outer', ['State', 'District'])
-        fig_2 = px.scatter_geo(district_choro1, lon=district_choro1['Longitude'], lat=district_choro1['Latitude'],
-                              hover_name='District',
-                              hover_data=['Total_Count', 'Total_Amount', 'Year', 'Quarter'], size_max=30,)
-        fig_2.update_traces(marker=dict(color="red", size=5))
-        fig = px.choropleth(district_choro,
-                            geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
-                            featureidkey='properties.ST_NM',
-                            locations='State',
-                            color='Total_Amount',
-                            hover_data=['District', 'Total_Count'],
-                            color_continuous_scale='Tealgrn')
-        fig.update_geos(fitbounds='locations', visible=False)
-        fig.add_trace(fig_2.data[0])
-        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0}, geo=dict(bgcolor='#00172B'),height=500, width=1200)
-        st.plotly_chart(fig,use_container_width=True)
+    if map_search:
+        table = 'Map_Trans'
+        if select_state == 'All' and select_year == 'All' and select_quarter == 'All':
+            guvi.execute(f"select * from {table}")
+            y_mt = guvi.fetchall()
+        elif select_state == 'All' and select_year != 'All' and select_quarter == 'All':
+            guvi.execute(f"select * from {table} where year = {select_year}")
+            y_mt = guvi.fetchall()
+        elif select_state == 'All' and select_year == 'All' and select_quarter != 'All':
+            guvi.execute(f"select * from {table} where quarter = '{select_quarter}'")
+            y_mt = guvi.fetchall()
+        elif select_state == 'All' and select_year != 'All' and select_quarter != 'All':
+            guvi.execute(f"select * from {table} where year = '{select_year}' and quarter = '{select_quarter}'")
+            y_mt = guvi.fetchall()
+        elif select_state != 'All' and select_year == 'All' and select_quarter == 'All':
+            guvi.execute(f"select * from {table} where state = '{select_state}'")
+            y_mt = guvi.fetchall()
+        elif select_state != 'All' and select_year != 'All' and select_quarter == 'All':
+            guvi.execute(f"select * from {table} where state = '{select_state}' and year = '{select_year}'")
+            y_mt = guvi.fetchall()
+        elif select_state != 'All' and select_year == 'All' and select_quarter != 'All':
+            guvi.execute(f"select * from {table} where state = '{select_state}' and quarter = '{select_quarter}'")
+            y_mt = guvi.fetchall()
+        else:
+            guvi.execute(
+                f"select * from {table} where state = '{select_state}' and year = '{select_year}' and quarter = '{select_quarter}'")
+            y_mt = guvi.fetchall()
+        df_mt = pd.DataFrame(y_mt, columns=['State', 'Year', 'Quarter', 'District', 'Total_Count','Total_Amount'])
+        df_mt = df_mt.reset_index(drop=True)
+        st.write(f"Geomap of {select_state} for the {select_year} year - {select_quarter} quarter")
 
-    table = 'Map_users'
-    if select_state == 'All' and select_year == 'All' and select_quarter == 'All':
-        guvi.execute(f"select * from {table}")
-        y_mt = guvi.fetchall()
-    elif select_state == 'All' and select_year != 'All' and select_quarter == 'All':
-        guvi.execute(f"select * from {table} where year = {select_year}")
-        y_mt = guvi.fetchall()
-        guvi.execute(f"select total_user, app_opened from {table} where year = {select_year-1}")
-        prev_y_mt = guvi.fetchall()
-    elif select_state == 'All' and select_year == 'All' and select_quarter != 'All':
-        guvi.execute(f"select * from {table} where quarter = '{select_quarter}'")
-        y_mt = guvi.fetchall()
-    elif select_state == 'All' and select_year != 'All' and select_quarter != 'All':
-        guvi.execute(f"select * from {table} where year = '{select_year}' and quarter = '{select_quarter}'")
-        y_mt = guvi.fetchall()
-        guvi.execute(f"select total_user, app_opened from {table} where year = '{select_year-1}' and quarter = '{select_quarter}'")
-        prev_y_mt = guvi.fetchall()
-    elif select_state != 'All' and select_year == 'All' and select_quarter == 'All':
-        guvi.execute(f"select * from {table} where state = '{select_state}'")
-        y_mt = guvi.fetchall()
-    elif select_state != 'All' and select_year != 'All' and select_quarter == 'All':
-        guvi.execute(f"select * from {table} where state = '{select_state}' and year = {select_year}")
-        y_mt = guvi.fetchall()
-        guvi.execute(f"select total_user, app_opened from {table} where state = '{select_state}' and year = {select_year-1}")
-        prev_y_mt = guvi.fetchall()
-    elif select_state != 'All' and select_year == 'All' and select_quarter != 'All':
-        guvi.execute(f"select * from {table} where state = '{select_state}' and quarter = '{select_quarter}'")
-        y_mt = guvi.fetchall()
-    else:
-        guvi.execute(
-            f"select * from {table} where state = '{select_state}' and year = '{select_year}' and quarter = '{select_quarter}'")
-        y_mt = guvi.fetchall()
-        guvi.execute(
-            f"select total_user, app_opened from {table} where state = '{select_state}' and year = '{select_year - 1}' and quarter = '{select_quarter}'")
-        prev_y_mt = guvi.fetchall()
+        # geo-Map section for Transaction
+        if select_state == 'All':
+            st.markdown('__<p style="text-align:center; font-size: 20px; color: #FAA026">Geo Map based on Transaction</P>__',
+                        unsafe_allow_html=True)
+            df_mt['State'] = df_mt['State'].replace(state_name_correction)
+            guvi.execute("select * from state_geo")
+            y = guvi.fetchall()
+            state_geo_df = pd.DataFrame(y,columns=['State', 'Latitude', 'Longitude'])
+            nation_choro = df_mt[['State', 'Total_Amount', 'Total_Count']].groupby(['State']).sum().reset_index()
+            nation_choro = pd.merge(nation_choro, state_geo_df, "outer", "State")
+            fig_1 = px.scatter_geo(nation_choro, lon=nation_choro['Longitude'], lat=nation_choro['Latitude'],
+                                  hover_name='State', text=nation_choro['State'],
+                                  hover_data=['Total_Count', 'Total_Amount'], size_max=30)
+            fig_1.update_traces(marker=dict(color="black", size=5))
+            fig = px.choropleth(nation_choro,
+                                geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
+                                featureidkey='properties.ST_NM',
+                                locations='State',
+                                color='Total_Amount',
+                                hover_data=['State', 'Total_Count'],
+                                color_continuous_scale='Turbo')
+            fig.update_geos(fitbounds='locations', visible=False)
+            fig.add_trace(fig_1.data[0])
+            fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0},geo=dict(bgcolor='#00172B'),height=500, width=1200)
+            st.plotly_chart(fig)
 
-    df_mt = pd.DataFrame(y_mt, columns=['State', 'Year', 'Quarter', 'District', 'User_Count','App_Opened'])
-    df_mt = df_mt.reset_index(drop=True)
+        else:
+            st.markdown(
+                '__<p style="text-align:center; font-size: 20px; color: #FAA026">Geo Map based on Transaction</P>__',
+                unsafe_allow_html=True)
+            guvi.execute(f"select * from district_geo where state = '{select_state}'")
+            y = guvi.fetchall()
+            district_geo_df = pd.DataFrame(y, columns=['State', 'District', 'Latitude', 'Longitude'])
+            df_mt1 = df_mt.copy()
+            district_choro1 = pd.merge(df_mt1, district_geo_df, 'outer', ['State', 'District'])
+            df_mt['State'] = df_mt['State'].replace(state_name_correction)
+            district_choro = pd.merge(df_mt, district_geo_df, 'outer', ['State', 'District'])
+            fig_2 = px.scatter_geo(district_choro1, lon=district_choro1['Longitude'], lat=district_choro1['Latitude'],
+                                  hover_name='District',
+                                  hover_data=['Total_Count', 'Total_Amount', 'Year', 'Quarter'], size_max=30,)
+            fig_2.update_traces(marker=dict(color="red", size=5))
+            fig = px.choropleth(district_choro,
+                                geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
+                                featureidkey='properties.ST_NM',
+                                locations='State',
+                                color='Total_Amount',
+                                hover_data=['District', 'Total_Count'],
+                                color_continuous_scale='Tealgrn')
+            fig.update_geos(fitbounds='locations', visible=False)
+            fig.add_trace(fig_2.data[0])
+            fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0}, geo=dict(bgcolor='#00172B'),height=500, width=1200)
+            st.plotly_chart(fig,use_container_width=True)
 
-    # geo-Map section for User
-    if select_state == 'All':
-        st.markdown('__<p style="text-align:Center; font-size: 20px; color: #FAA026">Geo Map based on User</P>__',
-                    unsafe_allow_html=True)
-        df_mt['State'] = df_mt['State'].replace(state_name_correction)
-        guvi.execute("select * from state_geo")
-        y = guvi.fetchall()
-        state_geo_df = pd.DataFrame(y,columns=['State', 'Latitude', 'Longitude'])
-        nation_choro = df_mt[['State', 'User_Count', 'App_Opened']].groupby(['State']).sum().reset_index()
-        nation_choro = pd.merge(nation_choro, state_geo_df, "outer", "State")
-        fig_1 = px.scatter_geo(nation_choro, lon=nation_choro['Longitude'], lat=nation_choro['Latitude'],
-                              hover_name='State', text=nation_choro['State'],
-                              hover_data=['User_Count', 'App_Opened'], size_max=30)
-        fig_1.update_traces(marker=dict(color="black", size=5))
-        fig = px.choropleth(nation_choro,
-                            geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
-                            featureidkey='properties.ST_NM',
-                            locations='State',
-                            color='User_Count',
-                            hover_data=['State', 'App_Opened'],
-                            color_continuous_scale='Turbo')
-        fig.update_geos(fitbounds='locations', visible=False)
-        fig.add_trace(fig_1.data[0])
-        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0},geo=dict(bgcolor='#00172B'),height=500, width=1200)
-        st.plotly_chart(fig)
-        current_user_count = df_mt['User_Count'].sum()
-        current_app_Opened = df_mt['App_Opened'].sum()
+        table = 'Map_users'
+        if select_state == 'All' and select_year == 'All' and select_quarter == 'All':
+            guvi.execute(f"select * from {table}")
+            y_mt = guvi.fetchall()
+        elif select_state == 'All' and select_year != 'All' and select_quarter == 'All':
+            guvi.execute(f"select * from {table} where year = {select_year}")
+            y_mt = guvi.fetchall()
+            guvi.execute(f"select total_user, app_opened from {table} where year = {select_year-1}")
+            prev_y_mt = guvi.fetchall()
+        elif select_state == 'All' and select_year == 'All' and select_quarter != 'All':
+            guvi.execute(f"select * from {table} where quarter = '{select_quarter}'")
+            y_mt = guvi.fetchall()
+        elif select_state == 'All' and select_year != 'All' and select_quarter != 'All':
+            guvi.execute(f"select * from {table} where year = '{select_year}' and quarter = '{select_quarter}'")
+            y_mt = guvi.fetchall()
+            guvi.execute(f"select total_user, app_opened from {table} where year = '{select_year-1}' and quarter = '{select_quarter}'")
+            prev_y_mt = guvi.fetchall()
+        elif select_state != 'All' and select_year == 'All' and select_quarter == 'All':
+            guvi.execute(f"select * from {table} where state = '{select_state}'")
+            y_mt = guvi.fetchall()
+        elif select_state != 'All' and select_year != 'All' and select_quarter == 'All':
+            guvi.execute(f"select * from {table} where state = '{select_state}' and year = {select_year}")
+            y_mt = guvi.fetchall()
+            guvi.execute(f"select total_user, app_opened from {table} where state = '{select_state}' and year = {select_year-1}")
+            prev_y_mt = guvi.fetchall()
+        elif select_state != 'All' and select_year == 'All' and select_quarter != 'All':
+            guvi.execute(f"select * from {table} where state = '{select_state}' and quarter = '{select_quarter}'")
+            y_mt = guvi.fetchall()
+        else:
+            guvi.execute(
+                f"select * from {table} where state = '{select_state}' and year = '{select_year}' and quarter = '{select_quarter}'")
+            y_mt = guvi.fetchall()
+            guvi.execute(
+                f"select total_user, app_opened from {table} where state = '{select_state}' and year = '{select_year - 1}' and quarter = '{select_quarter}'")
+            prev_y_mt = guvi.fetchall()
 
-    else:
-        st.markdown('__<p style="text-align:center; font-size: 20px; color: #FAA026">Geo Map based on User</P>__',
-                    unsafe_allow_html=True)
-        guvi.execute(f"select * from district_geo where state = '{select_state}'")
-        y = guvi.fetchall()
-        district_geo_df = pd.DataFrame(y, columns=['State', 'District', 'Latitude', 'Longitude'])
-        df_mt1 = df_mt.copy()
-        district_choro1 = pd.merge(df_mt1, district_geo_df, 'outer', ['State', 'District'])
-        df_mt['State'] = df_mt['State'].replace(state_name_correction)
-        district_choro = pd.merge(df_mt, district_geo_df, 'outer', ['State', 'District'])
-        fig_2 = px.scatter_geo(district_choro1, lon=district_choro1['Longitude'], lat=district_choro1['Latitude'],
-                               hover_name='District',
-                               hover_data=['User_Count', 'App_Opened', 'Year', 'Quarter'], size_max=30, )
-        fig_2.update_traces(marker=dict(color="red", size=5))
-        fig = px.choropleth(district_choro,
-                            geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
-                            featureidkey='properties.ST_NM',
-                            locations='State',
-                            color='User_Count',
-                            hover_data=['District', 'App_Opened'],
-                            color_continuous_scale='Tealgrn')
-        fig.update_geos(fitbounds='locations', visible=False)
-        fig.add_trace(fig_2.data[0])
-        fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0}, geo=dict(bgcolor='#00172B'),height=500, width=1200)
-        st.plotly_chart(fig,use_container_width=True)
+        df_mt = pd.DataFrame(y_mt, columns=['State', 'Year', 'Quarter', 'District', 'User_Count','App_Opened'])
+        df_mt = df_mt.reset_index(drop=True)
 
+        # geo-Map section for User
+        if select_state == 'All':
+            st.markdown('__<p style="text-align:Center; font-size: 20px; color: #FAA026">Geo Map based on User</P>__',
+                        unsafe_allow_html=True)
+            df_mt['State'] = df_mt['State'].replace(state_name_correction)
+            guvi.execute("select * from state_geo")
+            y = guvi.fetchall()
+            state_geo_df = pd.DataFrame(y,columns=['State', 'Latitude', 'Longitude'])
+            nation_choro = df_mt[['State', 'User_Count', 'App_Opened']].groupby(['State']).sum().reset_index()
+            nation_choro = pd.merge(nation_choro, state_geo_df, "outer", "State")
+            fig_1 = px.scatter_geo(nation_choro, lon=nation_choro['Longitude'], lat=nation_choro['Latitude'],
+                                  hover_name='State', text=nation_choro['State'],
+                                  hover_data=['User_Count', 'App_Opened'], size_max=30)
+            fig_1.update_traces(marker=dict(color="black", size=5))
+            fig = px.choropleth(nation_choro,
+                                geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
+                                featureidkey='properties.ST_NM',
+                                locations='State',
+                                color='User_Count',
+                                hover_data=['State', 'App_Opened'],
+                                color_continuous_scale='Turbo')
+            fig.update_geos(fitbounds='locations', visible=False)
+            fig.add_trace(fig_1.data[0])
+            fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0},geo=dict(bgcolor='#00172B'),height=500, width=1200)
+            st.plotly_chart(fig)
+            current_user_count = df_mt['User_Count'].sum()
+            current_app_Opened = df_mt['App_Opened'].sum()
+
+        else:
+            st.markdown('__<p style="text-align:center; font-size: 20px; color: #FAA026">Geo Map based on User</P>__',
+                        unsafe_allow_html=True)
+            guvi.execute(f"select * from district_geo where state = '{select_state}'")
+            y = guvi.fetchall()
+            district_geo_df = pd.DataFrame(y, columns=['State', 'District', 'Latitude', 'Longitude'])
+            df_mt1 = df_mt.copy()
+            district_choro1 = pd.merge(df_mt1, district_geo_df, 'outer', ['State', 'District'])
+            df_mt['State'] = df_mt['State'].replace(state_name_correction)
+            district_choro = pd.merge(df_mt, district_geo_df, 'outer', ['State', 'District'])
+            fig_2 = px.scatter_geo(district_choro1, lon=district_choro1['Longitude'], lat=district_choro1['Latitude'],
+                                   hover_name='District',
+                                   hover_data=['User_Count', 'App_Opened', 'Year', 'Quarter'], size_max=30, )
+            fig_2.update_traces(marker=dict(color="red", size=5))
+            fig = px.choropleth(district_choro,
+                                geojson="https://gist.githubusercontent.com/jbrobst/56c13bbbf9d97d187fea01ca62ea5112/raw/e388c4cae20aa53cb5090210a42ebb9b765c0a36/india_states.geojson",
+                                featureidkey='properties.ST_NM',
+                                locations='State',
+                                color='User_Count',
+                                hover_data=['District', 'App_Opened'],
+                                color_continuous_scale='Tealgrn')
+            fig.update_geos(fitbounds='locations', visible=False)
+            fig.add_trace(fig_2.data[0])
+            fig.update_layout(margin={"r": 0, "t": 0, "l": 0, "b": 0}, geo=dict(bgcolor='#00172B'),height=500, width=1200)
+            st.plotly_chart(fig,use_container_width=True)
 
 elif selected == "Top 10 Info":
     col1, col2, col3 = st.columns([2, 0.5, 2])
@@ -745,420 +756,425 @@ elif selected == "Top 10 Info":
         select_quarter = st.radio("Quarter", ('All', 'Q1', 'Q2', 'Q3', 'Q4'), label_visibility="hidden",
                                   horizontal=True)
 
-    selected_year = select_year if select_year != 'All' else select_year is None
-    selected_quarter = select_quarter if select_quarter != 'All' else select_quarter is None
+    col4,col5,col6 = st.columns([4, 4, 1])
+    with col6:
+        top_search = st.button("Search")
 
-    df_tt_st = df_tt_dt = df_tt_pc = df_tt_con = []
-    df_tu_st = df_tu_dt = df_tu_pc = df_tu_con = []
+    if top_search:
+        selected_year = select_year if select_year != 'All' else select_year is None
+        selected_quarter = select_quarter if select_quarter != 'All' else select_quarter is None
 
-    if selected_year is False and selected_quarter is False:
-        guvi.execute(f"SELECT 'States' as division, state, SUM(total_amount) AS total_amount "
-                     f"FROM top_trans "
-                     f"WHERE state IN (SELECT state FROM top_trans "
-                     f"GROUP BY state "
-                     f"ORDER BY SUM(total_amount) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY state "
-                     f"ORDER BY total_amount DESC "
-                     f"LIMIT 10")
-        y_tt_st = guvi.fetchall()
-        df_tt_st = pd.DataFrame(y_tt_st,
-                                columns=['division', 'Name', 'total_amount'])
+        df_tt_st = df_tt_dt = df_tt_pc = df_tt_con = []
+        df_tu_st = df_tu_dt = df_tu_pc = df_tu_con = []
 
-        guvi.execute(f"SELECT 'Districts' as division, district, SUM(total_amount) AS total_amount "
-                     f"FROM top_trans "
-                     f"WHERE district IN (SELECT district FROM top_trans "
-                     f"GROUP BY district "
-                     f"ORDER BY SUM(total_amount) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY district "
-                     f"ORDER BY total_amount DESC "
-                     f"LIMIT 10")
-        y_tt_dt = guvi.fetchall()
-        df_tt_dt = pd.DataFrame(y_tt_dt,
-                                columns=['division', 'Name', 'total_amount'])
+        if selected_year is False and selected_quarter is False:
+            guvi.execute(f"SELECT 'States' as division, state, SUM(total_amount) AS total_amount "
+                         f"FROM top_trans "
+                         f"WHERE state IN (SELECT state FROM top_trans "
+                         f"GROUP BY state "
+                         f"ORDER BY SUM(total_amount) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY state "
+                         f"ORDER BY total_amount DESC "
+                         f"LIMIT 10")
+            y_tt_st = guvi.fetchall()
+            df_tt_st = pd.DataFrame(y_tt_st,
+                                    columns=['division', 'Name', 'total_amount'])
 
-        guvi.execute(f"SELECT 'Pincodes' as division, CAST(LPAD(pincode::text, 6, ' ') AS TEXT) AS pincode_text, "
-                     f"SUM(total_amount) AS total_amount "
-                     f"FROM top_trans "
-                     f"WHERE pincode IN (SELECT pincode FROM top_trans "
-                     f"GROUP BY pincode "
-                     f"ORDER BY SUM(total_amount) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY pincode "
-                     f"ORDER BY total_amount DESC "
-                     f"LIMIT 10")
-        y_tt_pc = guvi.fetchall()
-        df_tt_pc = pd.DataFrame(y_tt_pc,
-                                columns=['division', 'Name', 'total_amount'])
+            guvi.execute(f"SELECT 'Districts' as division, district, SUM(total_amount) AS total_amount "
+                         f"FROM top_trans "
+                         f"WHERE district IN (SELECT district FROM top_trans "
+                         f"GROUP BY district "
+                         f"ORDER BY SUM(total_amount) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY district "
+                         f"ORDER BY total_amount DESC "
+                         f"LIMIT 10")
+            y_tt_dt = guvi.fetchall()
+            df_tt_dt = pd.DataFrame(y_tt_dt,
+                                    columns=['division', 'Name', 'total_amount'])
 
-        guvi.execute(f"SELECT 'States' as division, state, SUM(total_count) AS total_count "
-                     f"FROM top_users "
-                     f"WHERE state IN (SELECT state FROM top_users "
-                     f"GROUP BY state "
-                     f"ORDER BY SUM(total_count) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY state "
-                     f"ORDER BY total_count DESC "
-                     f"LIMIT 10")
-        y_tu_st = guvi.fetchall()
-        df_tu_st = pd.DataFrame(y_tu_st,
-                                columns=['division', 'Name', 'total_count'])
+            guvi.execute(f"SELECT 'Pincodes' as division, CAST(LPAD(pincode::text, 6, ' ') AS TEXT) AS pincode_text, "
+                         f"SUM(total_amount) AS total_amount "
+                         f"FROM top_trans "
+                         f"WHERE pincode IN (SELECT pincode FROM top_trans "
+                         f"GROUP BY pincode "
+                         f"ORDER BY SUM(total_amount) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY pincode "
+                         f"ORDER BY total_amount DESC "
+                         f"LIMIT 10")
+            y_tt_pc = guvi.fetchall()
+            df_tt_pc = pd.DataFrame(y_tt_pc,
+                                    columns=['division', 'Name', 'total_amount'])
 
-        guvi.execute(f"SELECT 'Districts' as division, district, SUM(total_count) AS total_count "
-                     f"FROM top_users "
-                     f"WHERE district IN (SELECT district FROM top_users "
-                     f"GROUP BY district "
-                     f"ORDER BY SUM(total_count) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY district "
-                     f"ORDER BY total_count DESC "
-                     f"LIMIT 10")
-        y_tu_dt = guvi.fetchall()
-        df_tu_dt = pd.DataFrame(y_tu_dt,
-                                columns=['division', 'Name', 'total_count'])
+            guvi.execute(f"SELECT 'States' as division, state, SUM(total_count) AS total_count "
+                         f"FROM top_users "
+                         f"WHERE state IN (SELECT state FROM top_users "
+                         f"GROUP BY state "
+                         f"ORDER BY SUM(total_count) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY state "
+                         f"ORDER BY total_count DESC "
+                         f"LIMIT 10")
+            y_tu_st = guvi.fetchall()
+            df_tu_st = pd.DataFrame(y_tu_st,
+                                    columns=['division', 'Name', 'total_count'])
 
-        guvi.execute(
-            f"SELECT 'Pincodes' as division, CAST(LPAD(pincode::text, 6, ' ') AS TEXT) AS pincode_text, "
-            f"SUM(total_count) AS total_count "
-            f"FROM top_users "
-            f"WHERE pincode IN (SELECT pincode FROM top_users "
-            f"GROUP BY pincode "
-            f"ORDER BY SUM(total_count) DESC "
-            f"LIMIT 10) "
-            f"GROUP BY pincode "
-            f"ORDER BY total_count DESC "
-            f"LIMIT 10")
-        y_tu_pc = guvi.fetchall()
-        df_tu_pc = pd.DataFrame(y_tu_pc,
-                                columns=['division', 'Name', 'total_count'])
+            guvi.execute(f"SELECT 'Districts' as division, district, SUM(total_count) AS total_count "
+                         f"FROM top_users "
+                         f"WHERE district IN (SELECT district FROM top_users "
+                         f"GROUP BY district "
+                         f"ORDER BY SUM(total_count) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY district "
+                         f"ORDER BY total_count DESC "
+                         f"LIMIT 10")
+            y_tu_dt = guvi.fetchall()
+            df_tu_dt = pd.DataFrame(y_tu_dt,
+                                    columns=['division', 'Name', 'total_count'])
 
-    elif selected_year is not False and selected_quarter is False:
-        guvi.execute(f"SELECT 'States' as division, state, SUM(total_amount) AS total_amount FROM top_trans "
-                     f"WHERE year = {selected_year} and state IN (SELECT state FROM top_trans "
-                     f"WHERE year = {selected_year} "
-                     f"GROUP BY state "
-                     f"ORDER BY SUM(total_amount) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY state "
-                     f"ORDER BY total_amount DESC "
-                     f"LIMIT 10")
-        y_tt_st = guvi.fetchall()
-        df_tt_st = pd.DataFrame(y_tt_st,
-                                columns=['division', 'Name', 'total_amount'])
+            guvi.execute(
+                f"SELECT 'Pincodes' as division, CAST(LPAD(pincode::text, 6, ' ') AS TEXT) AS pincode_text, "
+                f"SUM(total_count) AS total_count "
+                f"FROM top_users "
+                f"WHERE pincode IN (SELECT pincode FROM top_users "
+                f"GROUP BY pincode "
+                f"ORDER BY SUM(total_count) DESC "
+                f"LIMIT 10) "
+                f"GROUP BY pincode "
+                f"ORDER BY total_count DESC "
+                f"LIMIT 10")
+            y_tu_pc = guvi.fetchall()
+            df_tu_pc = pd.DataFrame(y_tu_pc,
+                                    columns=['division', 'Name', 'total_count'])
 
-        guvi.execute(f"SELECT 'Districts' as division, district, SUM(total_amount) AS total_amount "
-                     f"FROM top_trans "
-                     f"WHERE year = {selected_year} and district IN (SELECT district FROM top_trans "
-                     f"WHERE year = {selected_year} "
-                     f"GROUP BY district "
-                     f"ORDER BY SUM(total_amount) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY district "
-                     f"ORDER BY total_amount DESC "
-                     f"LIMIT 10")
-        y_tt_dt = guvi.fetchall()
-        df_tt_dt = pd.DataFrame(y_tt_dt,
-                                columns=['division', 'Name', 'total_amount'])
+        elif selected_year is not False and selected_quarter is False:
+            guvi.execute(f"SELECT 'States' as division, state, SUM(total_amount) AS total_amount FROM top_trans "
+                         f"WHERE year = {selected_year} and state IN (SELECT state FROM top_trans "
+                         f"WHERE year = {selected_year} "
+                         f"GROUP BY state "
+                         f"ORDER BY SUM(total_amount) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY state "
+                         f"ORDER BY total_amount DESC "
+                         f"LIMIT 10")
+            y_tt_st = guvi.fetchall()
+            df_tt_st = pd.DataFrame(y_tt_st,
+                                    columns=['division', 'Name', 'total_amount'])
 
-        guvi.execute(f"SELECT 'Pincodes' as division, CAST(LPAD(pincode::text, 6, ' ') AS TEXT) AS pincode_text, "
-                     f"SUM(total_amount) AS total_amount "
-                     f"FROM top_trans "
-                     f"WHERE year = {selected_year} and pincode IN (SELECT pincode FROM top_trans "
-                     f"WHERE year = {selected_year} "
-                     f"GROUP BY pincode "
-                     f"ORDER BY SUM(total_amount) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY pincode "
-                     f"ORDER BY total_amount DESC "
-                     f"LIMIT 10")
-        y_tt_pc = guvi.fetchall()
-        df_tt_pc = pd.DataFrame(y_tt_pc,
-                                columns=['division', 'Name', 'total_amount'])
+            guvi.execute(f"SELECT 'Districts' as division, district, SUM(total_amount) AS total_amount "
+                         f"FROM top_trans "
+                         f"WHERE year = {selected_year} and district IN (SELECT district FROM top_trans "
+                         f"WHERE year = {selected_year} "
+                         f"GROUP BY district "
+                         f"ORDER BY SUM(total_amount) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY district "
+                         f"ORDER BY total_amount DESC "
+                         f"LIMIT 10")
+            y_tt_dt = guvi.fetchall()
+            df_tt_dt = pd.DataFrame(y_tt_dt,
+                                    columns=['division', 'Name', 'total_amount'])
 
-        guvi.execute(f"SELECT 'States' as division, state, SUM(total_count) AS total_count FROM top_users "
-                     f"WHERE year = {selected_year} and state IN (SELECT state FROM top_users "
-                     f"WHERE year = {selected_year} "
-                     f"GROUP BY state "
-                     f"ORDER BY SUM(total_count) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY state "
-                     f"ORDER BY total_count DESC "
-                     f"LIMIT 10")
-        y_tu_st = guvi.fetchall()
-        df_tu_st = pd.DataFrame(y_tu_st,
-                                columns=['division', 'Name', 'total_count'])
+            guvi.execute(f"SELECT 'Pincodes' as division, CAST(LPAD(pincode::text, 6, ' ') AS TEXT) AS pincode_text, "
+                         f"SUM(total_amount) AS total_amount "
+                         f"FROM top_trans "
+                         f"WHERE year = {selected_year} and pincode IN (SELECT pincode FROM top_trans "
+                         f"WHERE year = {selected_year} "
+                         f"GROUP BY pincode "
+                         f"ORDER BY SUM(total_amount) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY pincode "
+                         f"ORDER BY total_amount DESC "
+                         f"LIMIT 10")
+            y_tt_pc = guvi.fetchall()
+            df_tt_pc = pd.DataFrame(y_tt_pc,
+                                    columns=['division', 'Name', 'total_amount'])
 
-        guvi.execute(f"SELECT 'Districts' as division, district, SUM(total_count) AS total_count "
-                     f"FROM top_users "
-                     f"WHERE year = {selected_year} and district IN (SELECT district FROM top_users "
-                     f"WHERE year = {selected_year} "
-                     f"GROUP BY district "
-                     f"ORDER BY SUM(total_count) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY district "
-                     f"ORDER BY total_count DESC "
-                     f"LIMIT 10")
-        y_tu_dt = guvi.fetchall()
-        df_tu_dt = pd.DataFrame(y_tu_dt,
-                                columns=['division', 'Name', 'total_count'])
+            guvi.execute(f"SELECT 'States' as division, state, SUM(total_count) AS total_count FROM top_users "
+                         f"WHERE year = {selected_year} and state IN (SELECT state FROM top_users "
+                         f"WHERE year = {selected_year} "
+                         f"GROUP BY state "
+                         f"ORDER BY SUM(total_count) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY state "
+                         f"ORDER BY total_count DESC "
+                         f"LIMIT 10")
+            y_tu_st = guvi.fetchall()
+            df_tu_st = pd.DataFrame(y_tu_st,
+                                    columns=['division', 'Name', 'total_count'])
 
-        guvi.execute(
-            f"SELECT 'Pincodes' as division, CAST(LPAD(pincode::text, 6, ' ') AS TEXT) AS pincode_text, "
-            f"SUM(total_count) AS total_count "
-            f"FROM top_users "
-            f"WHERE year = {selected_year} and pincode IN (SELECT pincode FROM top_users "
-            f"WHERE year = {selected_year} "
-            f"GROUP BY pincode "
-            f"ORDER BY SUM(total_count) DESC "
-            f"LIMIT 10) "
-            f"GROUP BY pincode "
-            f"ORDER BY total_count DESC "
-            f"LIMIT 10")
-        y_tu_pc = guvi.fetchall()
-        df_tu_pc = pd.DataFrame(y_tu_pc,
-                                columns=['division', 'Name', 'total_count'])
+            guvi.execute(f"SELECT 'Districts' as division, district, SUM(total_count) AS total_count "
+                         f"FROM top_users "
+                         f"WHERE year = {selected_year} and district IN (SELECT district FROM top_users "
+                         f"WHERE year = {selected_year} "
+                         f"GROUP BY district "
+                         f"ORDER BY SUM(total_count) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY district "
+                         f"ORDER BY total_count DESC "
+                         f"LIMIT 10")
+            y_tu_dt = guvi.fetchall()
+            df_tu_dt = pd.DataFrame(y_tu_dt,
+                                    columns=['division', 'Name', 'total_count'])
 
-    elif selected_year is False and selected_quarter is not False:
-        guvi.execute(f"SELECT 'States' as division, state, SUM(total_amount) AS total_amount "
-                     f"FROM top_trans "
-                     f"WHERE quarter = '{selected_quarter}' and state IN (SELECT state FROM top_trans "
-                     f"WHERE quarter = '{selected_quarter}' "
-                     f"GROUP BY state "
-                     f"ORDER BY SUM(total_amount) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY state "
-                     f"ORDER BY total_amount DESC "
-                     f"LIMIT 10")
-        y_tt_st = guvi.fetchall()
-        df_tt_st = pd.DataFrame(y_tt_st,
-                                columns=['division', 'Name', 'total_amount'])
+            guvi.execute(
+                f"SELECT 'Pincodes' as division, CAST(LPAD(pincode::text, 6, ' ') AS TEXT) AS pincode_text, "
+                f"SUM(total_count) AS total_count "
+                f"FROM top_users "
+                f"WHERE year = {selected_year} and pincode IN (SELECT pincode FROM top_users "
+                f"WHERE year = {selected_year} "
+                f"GROUP BY pincode "
+                f"ORDER BY SUM(total_count) DESC "
+                f"LIMIT 10) "
+                f"GROUP BY pincode "
+                f"ORDER BY total_count DESC "
+                f"LIMIT 10")
+            y_tu_pc = guvi.fetchall()
+            df_tu_pc = pd.DataFrame(y_tu_pc,
+                                    columns=['division', 'Name', 'total_count'])
 
-        guvi.execute(f"SELECT 'Districts' as division, district, SUM(total_amount) AS total_amount "
-                     f"FROM top_trans "
-                     f"WHERE quarter = '{selected_quarter}' and district IN (SELECT district FROM top_trans "
-                     f"WHERE quarter = '{selected_quarter}' "
-                     f"GROUP BY district "
-                     f"ORDER BY SUM(total_amount) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY district "
-                     f"ORDER BY total_amount DESC "
-                     f"LIMIT 10")
-        y_tt_dt = guvi.fetchall()
-        df_tt_dt = pd.DataFrame(y_tt_dt,
-                                columns=['division', 'Name', 'total_amount'])
+        elif selected_year is False and selected_quarter is not False:
+            guvi.execute(f"SELECT 'States' as division, state, SUM(total_amount) AS total_amount "
+                         f"FROM top_trans "
+                         f"WHERE quarter = '{selected_quarter}' and state IN (SELECT state FROM top_trans "
+                         f"WHERE quarter = '{selected_quarter}' "
+                         f"GROUP BY state "
+                         f"ORDER BY SUM(total_amount) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY state "
+                         f"ORDER BY total_amount DESC "
+                         f"LIMIT 10")
+            y_tt_st = guvi.fetchall()
+            df_tt_st = pd.DataFrame(y_tt_st,
+                                    columns=['division', 'Name', 'total_amount'])
 
-        guvi.execute(f"SELECT 'Pincodes' as division, CAST(LPAD(pincode::text, 6, ' ') AS TEXT) AS pincode_text, "
-                     f"SUM(total_amount) AS total_amount "
-                     f"FROM top_trans "
-                     f"WHERE quarter = '{selected_quarter}' and pincode IN (SELECT pincode FROM top_trans "
-                     f"WHERE quarter = '{selected_quarter}' "
-                     f"GROUP BY pincode "
-                     f"ORDER BY SUM(total_amount) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY pincode "
-                     f"ORDER BY total_amount DESC "
-                     f"LIMIT 10")
-        y_tt_pc = guvi.fetchall()
-        df_tt_pc = pd.DataFrame(y_tt_pc,
-                                columns=['division', 'Name', 'total_amount'])
+            guvi.execute(f"SELECT 'Districts' as division, district, SUM(total_amount) AS total_amount "
+                         f"FROM top_trans "
+                         f"WHERE quarter = '{selected_quarter}' and district IN (SELECT district FROM top_trans "
+                         f"WHERE quarter = '{selected_quarter}' "
+                         f"GROUP BY district "
+                         f"ORDER BY SUM(total_amount) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY district "
+                         f"ORDER BY total_amount DESC "
+                         f"LIMIT 10")
+            y_tt_dt = guvi.fetchall()
+            df_tt_dt = pd.DataFrame(y_tt_dt,
+                                    columns=['division', 'Name', 'total_amount'])
 
-        guvi.execute(f"SELECT 'States' as division, state, SUM(total_count) AS total_count "
-                     f"FROM top_users "
-                     f"WHERE quarter = '{selected_quarter}' and state IN (SELECT state FROM top_users "
-                     f"WHERE quarter = '{selected_quarter}' "
-                     f"GROUP BY state "
-                     f"ORDER BY SUM(total_count) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY state "
-                     f"ORDER BY total_count DESC "
-                     f"LIMIT 10")
-        y_tu_st = guvi.fetchall()
-        df_tu_st = pd.DataFrame(y_tu_st,
-                                columns=['division', 'Name', 'total_count'])
+            guvi.execute(f"SELECT 'Pincodes' as division, CAST(LPAD(pincode::text, 6, ' ') AS TEXT) AS pincode_text, "
+                         f"SUM(total_amount) AS total_amount "
+                         f"FROM top_trans "
+                         f"WHERE quarter = '{selected_quarter}' and pincode IN (SELECT pincode FROM top_trans "
+                         f"WHERE quarter = '{selected_quarter}' "
+                         f"GROUP BY pincode "
+                         f"ORDER BY SUM(total_amount) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY pincode "
+                         f"ORDER BY total_amount DESC "
+                         f"LIMIT 10")
+            y_tt_pc = guvi.fetchall()
+            df_tt_pc = pd.DataFrame(y_tt_pc,
+                                    columns=['division', 'Name', 'total_amount'])
 
-        guvi.execute(f"SELECT 'Districts' as division, district, SUM(total_count) AS total_count "
-                     f"FROM top_users "
-                     f"WHERE quarter = '{selected_quarter}' and district IN (SELECT district FROM top_users "
-                     f"WHERE quarter = '{selected_quarter}' "
-                     f"GROUP BY district "
-                     f"ORDER BY SUM(total_count) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY district "
-                     f"ORDER BY total_count DESC "
-                     f"LIMIT 10")
-        y_tu_dt = guvi.fetchall()
-        df_tu_dt = pd.DataFrame(y_tu_dt,
-                                columns=['division', 'Name', 'total_count'])
+            guvi.execute(f"SELECT 'States' as division, state, SUM(total_count) AS total_count "
+                         f"FROM top_users "
+                         f"WHERE quarter = '{selected_quarter}' and state IN (SELECT state FROM top_users "
+                         f"WHERE quarter = '{selected_quarter}' "
+                         f"GROUP BY state "
+                         f"ORDER BY SUM(total_count) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY state "
+                         f"ORDER BY total_count DESC "
+                         f"LIMIT 10")
+            y_tu_st = guvi.fetchall()
+            df_tu_st = pd.DataFrame(y_tu_st,
+                                    columns=['division', 'Name', 'total_count'])
 
-        guvi.execute(
-            f"SELECT 'Pincodes' as division, CAST(LPAD(pincode::text, 6, ' ') AS TEXT) AS pincode_text, "
-            f"SUM(total_count) AS total_count "
-            f"FROM top_users "
-            f"WHERE quarter = '{selected_quarter}' and pincode IN (SELECT pincode FROM top_users "
-            f"WHERE quarter = '{selected_quarter}' "
-            f"GROUP BY pincode "
-            f"ORDER BY SUM(total_count) DESC "
-            f"LIMIT 10) "
-            f"GROUP BY pincode "
-            f"ORDER BY total_count DESC "
-            f"LIMIT 10")
-        y_tu_pc = guvi.fetchall()
-        df_tu_pc = pd.DataFrame(y_tu_pc,
-                                columns=['division', 'Name', 'total_count'])
+            guvi.execute(f"SELECT 'Districts' as division, district, SUM(total_count) AS total_count "
+                         f"FROM top_users "
+                         f"WHERE quarter = '{selected_quarter}' and district IN (SELECT district FROM top_users "
+                         f"WHERE quarter = '{selected_quarter}' "
+                         f"GROUP BY district "
+                         f"ORDER BY SUM(total_count) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY district "
+                         f"ORDER BY total_count DESC "
+                         f"LIMIT 10")
+            y_tu_dt = guvi.fetchall()
+            df_tu_dt = pd.DataFrame(y_tu_dt,
+                                    columns=['division', 'Name', 'total_count'])
 
-    elif selected_year is not False and selected_quarter is not False:
-        guvi.execute(f"SELECT 'States' as division, state, SUM(total_amount) AS total_amount "
-                     f"FROM top_trans "
-                     f"WHERE year = {selected_year} and quarter = '{selected_quarter}' and "
-                     f"state IN (SELECT state FROM top_trans "
-                     f"WHERE year = {selected_year} and quarter = '{selected_quarter}' "
-                     f"GROUP BY state "
-                     f"ORDER BY SUM(total_amount) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY state "
-                     f"ORDER BY total_amount DESC "
-                     f"LIMIT 10")
-        y_tt_st = guvi.fetchall()
-        df_tt_st = pd.DataFrame(y_tt_st,
-                                columns=['division', 'Name', 'total_amount'])
+            guvi.execute(
+                f"SELECT 'Pincodes' as division, CAST(LPAD(pincode::text, 6, ' ') AS TEXT) AS pincode_text, "
+                f"SUM(total_count) AS total_count "
+                f"FROM top_users "
+                f"WHERE quarter = '{selected_quarter}' and pincode IN (SELECT pincode FROM top_users "
+                f"WHERE quarter = '{selected_quarter}' "
+                f"GROUP BY pincode "
+                f"ORDER BY SUM(total_count) DESC "
+                f"LIMIT 10) "
+                f"GROUP BY pincode "
+                f"ORDER BY total_count DESC "
+                f"LIMIT 10")
+            y_tu_pc = guvi.fetchall()
+            df_tu_pc = pd.DataFrame(y_tu_pc,
+                                    columns=['division', 'Name', 'total_count'])
 
-        guvi.execute(f"SELECT 'Districts' as division, district, SUM(total_amount) AS total_amount "
-                     f"FROM top_trans "
-                     f"WHERE year = {selected_year} and quarter = '{selected_quarter}' and "
-                     f"district IN (SELECT district FROM top_trans "
-                     f"WHERE year = {selected_year} and quarter = '{selected_quarter}' "
-                     f"GROUP BY district "
-                     f"ORDER BY SUM(total_amount) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY district "
-                     f"ORDER BY total_amount DESC "
-                     f"LIMIT 10")
-        y_tt_dt = guvi.fetchall()
-        df_tt_dt = pd.DataFrame(y_tt_dt,
-                                columns=['division', 'Name', 'total_amount'])
+        elif selected_year is not False and selected_quarter is not False:
+            guvi.execute(f"SELECT 'States' as division, state, SUM(total_amount) AS total_amount "
+                         f"FROM top_trans "
+                         f"WHERE year = {selected_year} and quarter = '{selected_quarter}' and "
+                         f"state IN (SELECT state FROM top_trans "
+                         f"WHERE year = {selected_year} and quarter = '{selected_quarter}' "
+                         f"GROUP BY state "
+                         f"ORDER BY SUM(total_amount) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY state "
+                         f"ORDER BY total_amount DESC "
+                         f"LIMIT 10")
+            y_tt_st = guvi.fetchall()
+            df_tt_st = pd.DataFrame(y_tt_st,
+                                    columns=['division', 'Name', 'total_amount'])
 
-        guvi.execute(f"SELECT 'Pincodes' as division, CAST(LPAD(pincode::text, 6, ' ') AS TEXT) AS pincode_text, "
-                     f"SUM(total_amount) AS total_amount "
-                     f"FROM top_trans "
-                     f"WHERE year = {selected_year} and quarter = '{selected_quarter}' and "
-                     f"pincode IN (SELECT pincode FROM top_trans "
-                     f"WHERE year = {selected_year} and quarter = '{selected_quarter}' "
-                     f"GROUP BY pincode "
-                     f"ORDER BY SUM(total_amount) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY pincode "
-                     f"ORDER BY total_amount DESC "
-                     f"LIMIT 10")
-        y_tt_pc = guvi.fetchall()
-        df_tt_pc = pd.DataFrame(y_tt_pc,
-                                columns=['division', 'Name', 'total_amount'])
+            guvi.execute(f"SELECT 'Districts' as division, district, SUM(total_amount) AS total_amount "
+                         f"FROM top_trans "
+                         f"WHERE year = {selected_year} and quarter = '{selected_quarter}' and "
+                         f"district IN (SELECT district FROM top_trans "
+                         f"WHERE year = {selected_year} and quarter = '{selected_quarter}' "
+                         f"GROUP BY district "
+                         f"ORDER BY SUM(total_amount) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY district "
+                         f"ORDER BY total_amount DESC "
+                         f"LIMIT 10")
+            y_tt_dt = guvi.fetchall()
+            df_tt_dt = pd.DataFrame(y_tt_dt,
+                                    columns=['division', 'Name', 'total_amount'])
 
-        guvi.execute(f"SELECT 'States' as division, state, SUM(total_count) AS total_count "
-                     f"FROM top_users "
-                     f"WHERE year = {selected_year} and quarter = '{selected_quarter}' and "
-                     f"state IN (SELECT state FROM top_users "
-                     f"WHERE year = {selected_year} and quarter = '{selected_quarter}' "
-                     f"GROUP BY state "
-                     f"ORDER BY SUM(total_count) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY state "
-                     f"ORDER BY total_count DESC "
-                     f"LIMIT 10")
-        y_tu_st = guvi.fetchall()
-        df_tu_st = pd.DataFrame(y_tu_st,
-                                columns=['division', 'Name', 'total_count'])
+            guvi.execute(f"SELECT 'Pincodes' as division, CAST(LPAD(pincode::text, 6, ' ') AS TEXT) AS pincode_text, "
+                         f"SUM(total_amount) AS total_amount "
+                         f"FROM top_trans "
+                         f"WHERE year = {selected_year} and quarter = '{selected_quarter}' and "
+                         f"pincode IN (SELECT pincode FROM top_trans "
+                         f"WHERE year = {selected_year} and quarter = '{selected_quarter}' "
+                         f"GROUP BY pincode "
+                         f"ORDER BY SUM(total_amount) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY pincode "
+                         f"ORDER BY total_amount DESC "
+                         f"LIMIT 10")
+            y_tt_pc = guvi.fetchall()
+            df_tt_pc = pd.DataFrame(y_tt_pc,
+                                    columns=['division', 'Name', 'total_amount'])
 
-        guvi.execute(f"SELECT 'Districts' as division, district, SUM(total_count) AS total_count "
-                     f"FROM top_users "
-                     f"WHERE year = {selected_year} and quarter = '{selected_quarter}' and "
-                     f"district IN (SELECT district FROM top_users "
-                     f"WHERE year = {selected_year} and quarter = '{selected_quarter}' "
-                     f"GROUP BY district "
-                     f"ORDER BY SUM(total_count) DESC "
-                     f"LIMIT 10) "
-                     f"GROUP BY district "
-                     f"ORDER BY total_count DESC "
-                     f"LIMIT 10")
-        y_tu_dt = guvi.fetchall()
-        df_tu_dt = pd.DataFrame(y_tu_dt,
-                                columns=['division', 'Name', 'total_count'])
+            guvi.execute(f"SELECT 'States' as division, state, SUM(total_count) AS total_count "
+                         f"FROM top_users "
+                         f"WHERE year = {selected_year} and quarter = '{selected_quarter}' and "
+                         f"state IN (SELECT state FROM top_users "
+                         f"WHERE year = {selected_year} and quarter = '{selected_quarter}' "
+                         f"GROUP BY state "
+                         f"ORDER BY SUM(total_count) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY state "
+                         f"ORDER BY total_count DESC "
+                         f"LIMIT 10")
+            y_tu_st = guvi.fetchall()
+            df_tu_st = pd.DataFrame(y_tu_st,
+                                    columns=['division', 'Name', 'total_count'])
 
-        guvi.execute(
-            f"SELECT 'Pincodes' as division, CAST(LPAD(pincode::text, 6, ' ') AS TEXT) AS pincode_text, "
-            f"SUM(total_count) AS total_count "
-            f"FROM top_users "
-            f"WHERE year = {selected_year} and quarter = '{selected_quarter}' and "
-            f"pincode IN (SELECT pincode FROM top_users "
-            f"WHERE year = {selected_year} and quarter = '{selected_quarter}' "
-            f"GROUP BY pincode "
-            f"ORDER BY SUM(total_count) DESC "
-            f"LIMIT 10) "
-            f"GROUP BY pincode "
-            f"ORDER BY total_count DESC "
-            f"LIMIT 10")
-        y_tu_pc = guvi.fetchall()
-        df_tu_pc = pd.DataFrame(y_tu_pc,
-                                columns=['division', 'Name', 'total_count'])
-    df_tt_con = pd.concat([df_tt_dt, df_tt_st, df_tt_pc], axis=0).reset_index()
-    df_tu_con = pd.concat([df_tu_dt, df_tu_st, df_tu_pc], axis=0).reset_index()
+            guvi.execute(f"SELECT 'Districts' as division, district, SUM(total_count) AS total_count "
+                         f"FROM top_users "
+                         f"WHERE year = {selected_year} and quarter = '{selected_quarter}' and "
+                         f"district IN (SELECT district FROM top_users "
+                         f"WHERE year = {selected_year} and quarter = '{selected_quarter}' "
+                         f"GROUP BY district "
+                         f"ORDER BY SUM(total_count) DESC "
+                         f"LIMIT 10) "
+                         f"GROUP BY district "
+                         f"ORDER BY total_count DESC "
+                         f"LIMIT 10")
+            y_tu_dt = guvi.fetchall()
+            df_tu_dt = pd.DataFrame(y_tu_dt,
+                                    columns=['division', 'Name', 'total_count'])
 
-    # Top 10 Transaction details in sunburst and in dataframe
-    col1,col2 = st.columns([3.5,2])
-    with col1:
-        fig_tt = px.sunburst(df_tt_con, path = ['division', 'Name'],
-                             values = 'total_amount',
-                             color = 'division',
-                             color_discrete_map={'States': '#65FAAB','Districts': '#FAA026', 'Pincodes':'#C3FA26'},
-                             hover_data = ['division', 'Name', 'total_amount'],
-                             title = "Top 10 Transaction Details"
-                             )
-        fig_tt.update_layout(title_x=0.15, title_y=0.99, margin = dict(t=20, l=10, r=10, b=0))
-        st.plotly_chart(fig_tt, theme="streamlit", use_container_width=True)
-    with col2:
-        # st.markdown('__<p style="text-align:left; font-size: 20px; color: white">Segment</P>__',
-        # unsafe_allow_html=True)
-        segment = st.radio("Segment", ('State', 'District', 'Pincode'), label_visibility="visible",
-                           horizontal=True)
-        if segment == 'State':
-            df_tt_st['Name'] = df_tt_st['Name'].replace(state_name_correction)
-            df = df_tt_st.groupby('Name')['total_amount'].sum().sort_values(ascending=False)
-            st.dataframe(df, use_container_width=True)
-        elif segment == 'District':
-            df = df_tt_dt.groupby('Name')['total_amount'].sum().sort_values(ascending=False)
-            st.dataframe(df, use_container_width=True)
-        elif segment == 'Pincode':
-            df = df_tt_pc.groupby('Name')['total_amount'].sum().sort_values(ascending=False)
-            st.dataframe(df, use_container_width = True)
+            guvi.execute(
+                f"SELECT 'Pincodes' as division, CAST(LPAD(pincode::text, 6, ' ') AS TEXT) AS pincode_text, "
+                f"SUM(total_count) AS total_count "
+                f"FROM top_users "
+                f"WHERE year = {selected_year} and quarter = '{selected_quarter}' and "
+                f"pincode IN (SELECT pincode FROM top_users "
+                f"WHERE year = {selected_year} and quarter = '{selected_quarter}' "
+                f"GROUP BY pincode "
+                f"ORDER BY SUM(total_count) DESC "
+                f"LIMIT 10) "
+                f"GROUP BY pincode "
+                f"ORDER BY total_count DESC "
+                f"LIMIT 10")
+            y_tu_pc = guvi.fetchall()
+            df_tu_pc = pd.DataFrame(y_tu_pc,
+                                    columns=['division', 'Name', 'total_count'])
+        df_tt_con = pd.concat([df_tt_dt, df_tt_st, df_tt_pc], axis=0).reset_index()
+        df_tu_con = pd.concat([df_tu_dt, df_tu_st, df_tu_pc], axis=0).reset_index()
 
-    # Top user Information details in sunburst and in dataframe
-    col1, col2 = st.columns([3.5, 2])
-    with col1:
-        fig_tt = px.sunburst(df_tu_con, path=['division', 'Name'],
-                             values='total_count',
-                             color='division',
-                             color_discrete_map={'States': '#65FAAB', 'Districts': '#FAA026',
-                                                 'Pincodes': '#C3FA26'},
-                             hover_data=['division', 'Name', 'total_count'],
-                             title="Top 10 User Details"
-                             )
-        fig_tt.update_layout(title_x=0.15, title_y=0.99, margin=dict(t=20, l=10, r=10, b=0))
-        st.plotly_chart(fig_tt, theme="streamlit", use_container_width=True)
-    with col2:
-        # st.markdown('__<p style="text-align:left; font-size: 20px; color: white">Segment</P>__',
-        # unsafe_allow_html=True)
-        if segment == 'State':
-            df_tu_st['Name'] = df_tu_st['Name'].replace(state_name_correction)
-            df = df_tu_st.groupby('Name')['total_count'].sum().sort_values(ascending=False)
-            st.dataframe(df, use_container_width=True)
-        elif segment == 'District':
-            df = df_tu_dt.groupby('Name')['total_count'].sum().sort_values(ascending=False)
-            st.dataframe(df, use_container_width=True)
-        elif segment == 'Pincode':
-            df = df_tu_pc.groupby('Name')['total_count'].sum().sort_values(ascending=False)
-            st.dataframe(df, use_container_width=True)
+        # Top 10 Transaction details in sunburst and in dataframe
+        col1,col2 = st.columns([3.5,2])
+        with col1:
+            fig_tt = px.sunburst(df_tt_con, path = ['division', 'Name'],
+                                 values = 'total_amount',
+                                 color = 'division',
+                                 color_discrete_map={'States': '#65FAAB','Districts': '#FAA026', 'Pincodes':'#C3FA26'},
+                                 hover_data = ['division', 'Name', 'total_amount'],
+                                 title = "Top 10 Transaction Details"
+                                 )
+            fig_tt.update_layout(title_x=0.15, title_y=0.99, margin = dict(t=20, l=10, r=10, b=0))
+            st.plotly_chart(fig_tt, theme="streamlit", use_container_width=True)
+        with col2:
+            # st.markdown('__<p style="text-align:left; font-size: 20px; color: white">Segment</P>__',
+            # unsafe_allow_html=True)
+            segment = st.radio("Segment", ('State', 'District', 'Pincode'), label_visibility="visible",
+                               horizontal=True)
+            if segment == 'State':
+                df_tt_st['Name'] = df_tt_st['Name'].replace(state_name_correction)
+                df = df_tt_st.groupby('Name')['total_amount'].sum().sort_values(ascending=False)
+                st.dataframe(df, use_container_width=True)
+            elif segment == 'District':
+                df = df_tt_dt.groupby('Name')['total_amount'].sum().sort_values(ascending=False)
+                st.dataframe(df, use_container_width=True)
+            elif segment == 'Pincode':
+                df = df_tt_pc.groupby('Name')['total_amount'].sum().sort_values(ascending=False)
+                st.dataframe(df, use_container_width = True)
 
-if selected == "About":
+        # Top user Information details in sunburst and in dataframe
+        col1, col2 = st.columns([3.5, 2])
+        with col1:
+            fig_tt = px.sunburst(df_tu_con, path=['division', 'Name'],
+                                 values='total_count',
+                                 color='division',
+                                 color_discrete_map={'States': '#65FAAB', 'Districts': '#FAA026',
+                                                     'Pincodes': '#C3FA26'},
+                                 hover_data=['division', 'Name', 'total_count'],
+                                 title="Top 10 User Details"
+                                 )
+            fig_tt.update_layout(title_x=0.15, title_y=0.99, margin=dict(t=20, l=10, r=10, b=0))
+            st.plotly_chart(fig_tt, theme="streamlit", use_container_width=True)
+        with col2:
+            # st.markdown('__<p style="text-align:left; font-size: 20px; color: white">Segment</P>__',
+            # unsafe_allow_html=True)
+            if segment == 'State':
+                df_tu_st['Name'] = df_tu_st['Name'].replace(state_name_correction)
+                df = df_tu_st.groupby('Name')['total_count'].sum().sort_values(ascending=False)
+                st.dataframe(df, use_container_width=True)
+            elif segment == 'District':
+                df = df_tu_dt.groupby('Name')['total_count'].sum().sort_values(ascending=False)
+                st.dataframe(df, use_container_width=True)
+            elif segment == 'Pincode':
+                df = df_tu_pc.groupby('Name')['total_count'].sum().sort_values(ascending=False)
+                st.dataframe(df, use_container_width=True)
+
+elif selected == "About":
     st.markdown('__<p style="text-align:left; font-size: 25px; color: #FAA026">Summary of Data Visualization Project</P>__',
                 unsafe_allow_html=True)
     st.write("This data visualization project focused on the user and transaction data of the Phonepe mobile payment app. By taking a copy of data from the Phonepe Pulse git repository, useful information about the behavior and transactions of users was obtained. This data was then consolidated into an interactive dashboard, which offers quick insights into how well the Phonepe app is performing.")
@@ -1179,3 +1195,4 @@ if selected == "About":
     st.write("selvamani.ind@gmail.com")
     st.subheader("Github")
     st.write("https://github.com/selvamani1992")
+    st.balloons()
