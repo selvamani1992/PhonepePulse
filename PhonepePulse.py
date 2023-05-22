@@ -7,7 +7,7 @@ from streamlit_option_menu import option_menu
 import plotly.express as px
 
 # Database connectivity segment
-selva = psycopg2.connect(host="localhost", user="postgres", password="Selva@123", port=5432, database="Phonepe")
+selva = psycopg2.connect(host="localhost", user="username", password="password", port=5432, database="Phonepe")
 guvi = selva.cursor()
 
 def create_table():
