@@ -46,3 +46,7 @@ Extracted valuable data uploaded to postgresql with a pyschopg2 connector in a s
 
 ### Data Visualization:
 The streamlit Web Application package was used to create a Phonepe overview with five tabs and multiple filtering options to see detailed insight about the data. These tabs include Transaction type and device information, geo map visualization, and the top ten states/districts/areas for Phonepe transactions & user registrations.
+
+## Demo Video
+
+https://www.linkedin.com/posts/selvamani-a-795580266_learning-connections-project-activity-7061351847680212997-eQmH?utm_source=share&utm_medium=member_desktop
